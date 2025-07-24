@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define FILE_NAME "houses.txt"
+// === File Definitions ===
+#define HOUSE_FILE "houses.txt"
+#define USER_FILE "users.txt"
 
+// === Structures ===
 typedef struct {
     int id;
     char owner[50];
@@ -12,11 +15,15 @@ typedef struct {
     int is_rented;
 } House;
 
-// Function declarations
+typedef struct {
+    char username[30];
+    char password[30];
+} User;
+
+// === Function Declarations ===
 void adminMenu();
 void userMenu();
 int adminLogin();
-
 void addHouse();
 void viewHouses();
 void searchHouse();
@@ -24,14 +31,18 @@ void rentHouse();
 void deleteHouse();
 void modifyHouse();
 
+void createAccount();
+int userLogin();
+
+// === Main Function ===
 int main() {
     int choice;
-
     do {
         printf("\n===== Welcome to House Rental System =====\n");
         printf("1. Admin Login\n");
-        printf("2. User Access\n");
-        printf("3. Exit\n");
+        printf("2. User Login\n");
+        printf("3. Create User Account\n");
+        printf("4. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar();
@@ -45,15 +56,20 @@ int main() {
                 }
                 break;
             case 2:
-                userMenu();
+                if (userLogin()) {
+                    userMenu();
+                }
                 break;
             case 3:
+                createAccount();
+                break;
+            case 4:
                 printf("Exiting system. Goodbye!\n");
                 break;
             default:
                 printf("Invalid choice. Try again.\n");
         }
-    } while (choice != 3);
+    } while (choice != 4);
 
     return 0;
 }
@@ -61,7 +77,6 @@ int main() {
 // === Admin Login ===
 int adminLogin() {
     char username[20], password[20];
-
     printf("\n--- Admin Login ---\n");
     printf("Username: ");
     fgets(username, sizeof(username), stdin);
@@ -90,7 +105,6 @@ void adminMenu() {
         printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar();
-
         switch(choice) {
             case 1: addHouse(); break;
             case 2: deleteHouse(); break;
@@ -124,16 +138,78 @@ void userMenu() {
     } while(choice != 4);
 }
 
+// === Create User Account ===
+void createAccount() {
+    FILE *fp = fopen(USER_FILE, "ab");
+    if (!fp) {
+        printf("Error opening user file.\n");
+        return;
+    }
+
+    User newUser;
+    printf("\n--- Create New Account ---\n");
+    getchar();
+    printf("Enter username: ");
+    fgets(newUser.username, sizeof(newUser.username), stdin);
+    newUser.username[strcspn(newUser.username, "\n")] = 0;
+
+    printf("Enter password: ");
+    fgets(newUser.password, sizeof(newUser.password), stdin);
+    newUser.password[strcspn(newUser.password, "\n")] = 0;
+
+    fwrite(&newUser, sizeof(User), 1, fp);
+    fclose(fp);
+    printf("Account created successfully!\n");
+}
+
+// === User Login ===
+int userLogin() {
+    char uname[30], pword[30];
+    User u;
+    int found = 0;
+
+    FILE *fp = fopen(USER_FILE, "rb");
+    if (!fp) {
+        printf("No user data found. Please create an account first.\n");
+        return 0;
+    }
+
+    getchar(); // clear buffer
+    printf("\n--- User Login ---\n");
+    printf("Username: ");
+    fgets(uname, sizeof(uname), stdin);
+    uname[strcspn(uname, "\n")] = 0;
+
+    printf("Password: ");
+    fgets(pword, sizeof(pword), stdin);
+    pword[strcspn(pword, "\n")] = 0;
+
+    while (fread(&u, sizeof(User), 1, fp)) {
+        if (strcmp(u.username, uname) == 0 && strcmp(u.password, pword) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    fclose(fp);
+
+    if (found) {
+        printf("Login successful!\n");
+        return 1;
+    } else {
+        printf("Invalid username or password.\n");
+        return 0;
+    }
+}
+
 // === Add House ===
 void addHouse() {
     House h;
-    FILE *fp = fopen(FILE_NAME, "ab");
+    FILE *fp = fopen(HOUSE_FILE, "ab");
 
     if (!fp) {
         printf("Error opening file.\n");
         return;
     }
-
     printf("Enter House ID: ");
     scanf("%d", &h.id); getchar();
     printf("Enter Owner Name: ");
@@ -144,24 +220,20 @@ void addHouse() {
     h.address[strcspn(h.address, "\n")] = 0;
     printf("Enter Monthly Rent: ");
     scanf("%f", &h.rent);
-
     h.is_rented = 0;
-
     fwrite(&h, sizeof(House), 1, fp);
     fclose(fp);
-
     printf("House added.\n");
 }
 
 // === View Houses ===
 void viewHouses() {
     House h;
-    FILE *fp = fopen(FILE_NAME, "rb");
+    FILE *fp = fopen(HOUSE_FILE, "rb");
     if (!fp) {
         printf("No data found.\n");
         return;
     }
-
     printf("\n--- All Houses ---\n");
     while (fread(&h, sizeof(House), 1, fp)) {
         printf("ID: %d | Owner: %s | Address: %s | Rent: %.2f | Status: %s\n",
@@ -175,12 +247,11 @@ void viewHouses() {
 void searchHouse() {
     int id, found = 0;
     House h;
-    FILE *fp = fopen(FILE_NAME, "rb");
+    FILE *fp = fopen(HOUSE_FILE, "rb");
     if (!fp) {
         printf("File error.\n");
         return;
     }
-
     printf("Enter House ID: ");
     scanf("%d", &id);
 
@@ -193,7 +264,6 @@ void searchHouse() {
             break;
         }
     }
-
     if (!found) printf("House not found.\n");
 
     fclose(fp);
@@ -203,7 +273,7 @@ void searchHouse() {
 void rentHouse() {
     int id, found = 0;
     House h;
-    FILE *fp = fopen(FILE_NAME, "rb+");
+    FILE *fp = fopen(HOUSE_FILE, "rb+");
 
     if (!fp) {
         printf("Error opening file.\n");
@@ -237,7 +307,7 @@ void rentHouse() {
 void deleteHouse() {
     int id, found = 0;
     House h;
-    FILE *fp = fopen(FILE_NAME, "rb");
+    FILE *fp = fopen(HOUSE_FILE, "rb");
     FILE *temp = fopen("temp.txt", "wb");
 
     if (!fp || !temp) {
@@ -255,11 +325,10 @@ void deleteHouse() {
         }
         fwrite(&h, sizeof(House), 1, temp);
     }
-
     fclose(fp);
     fclose(temp);
-    remove(FILE_NAME);
-    rename("temp.txt", FILE_NAME);
+    remove(HOUSE_FILE);
+    rename("temp.txt", HOUSE_FILE);
 
     if (found)
         printf("House deleted.\n");
@@ -271,17 +340,15 @@ void deleteHouse() {
 void modifyHouse() {
     int id, found = 0;
     House h;
-    FILE *fp = fopen(FILE_NAME, "rb+");
+    FILE *fp = fopen(HOUSE_FILE, "rb+");
 
     if (!fp) {
         printf("File error.\n");
         return;
     }
-
     printf("Enter House ID to modify: ");
     scanf("%d", &id);
     getchar();
-
     while (fread(&h, sizeof(House), 1, fp)) {
         if (h.id == id) {
             found = 1;
@@ -303,11 +370,6 @@ void modifyHouse() {
             break;
         }
     }
-
     if (!found)
         printf("House ID not found.\n");
-
     fclose(fp);
-}
-// End of file
-// This code implements a simple house rental system with admin and user functionalities.
